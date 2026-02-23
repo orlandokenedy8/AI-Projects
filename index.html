@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Daily Instagram Bot</title>
+</head>
+<body>
+<script src="https://js.puter.com/v2/"></script>
+<script>
+const themes=["discipline and freedom","consistency and progress","growth mindset","daily motivation"];
+
+async function runBot(){
+  try {
+    const theme = themes[Math.floor(Math.random()*themes.length)];
+    console.log("🎯 Selected theme:",theme);
+
+    const quote = await puter.ai.chat(
+      "Select one short, meaningful, properly attributed motivational quote about "+theme+" (max 12 words, real author, no quotes). Output as: Quote — Author.",
+      { model:"gpt-5-nano" }
+    );
+
+    console.log("💬 Quote generated:",quote);
+
+    const imageElement = await puter.ai.txt2img(
+      "Create a 4K 3840x3840 Instagram image using this quote as anchor: "+quote+". Editorial, realistic, cinematic lighting.",
+      { model:"gpt-image-1.5", size:"3840x3840" }
+    );
+
+    const canvas = document.createElement("canvas");
+    canvas.width=imageElement.width;
+    canvas.height=imageElement.height;
+    canvas.getContext("2d").drawImage(imageElement,0,0);
+    const base64 = canvas.toDataURL("image/png").replace("data:image/png;base64,","");
+
+    const res = await fetch("http://localhost:3000/receive-ai",{
+      method:"POST",
+      headers:{ "Content-Type":"application/json" },
+      body:JSON.stringify({quote, base64})
+    });
+
+    if(res.ok){
+      document.body.innerHTML="<h2>✅ Posted Successfully</h2>";
+    } else {
+      const err = await res.json();
+      document.body.innerHTML="<h2>❌ Failed: "+err.error+"</h2>";
+    }
+
+  } catch(e){
+    console.error("❌ Bot error:",e);
+    document.body.innerHTML="<h2>❌ Error: "+e.message+"</h2>";
+  }
+}
+
+runBot();
+</script>
+</body>
+</html>
