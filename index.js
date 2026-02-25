@@ -280,7 +280,7 @@ app.post("/receive-ai", async (req, res) => {
   } catch (err) {
     log(`❌ Post failed: ${err.message}`);
     await sendTelegram(`❌ <b>Instagram Post Failed</b>\n${err.message}`);
-    res.status(500).json({ error: err.message });
+    // res.status(500).json({ error: err.message });
   }
 });
 
@@ -292,27 +292,80 @@ app.get("/", (req, res) => {
 <script src="https://js.puter.com/v2/"></script>
 <script>
 const themes=["discipline and freedom","consistency and progress","growth mindset","daily motivation"];
+// async function run() {
+//   // try {
+//     const theme = themes[Math.floor(Math.random()*themes.length)];
+//     const quote = await puter.ai.chat(
+//     // "You are executing Phase 1 and Phase 2. Select one short, meaningful, properly attributed motivational quote about " + theme + " that is philosophically substantial, universally resonant, contextually accurate, and not an overused cliché. The quote must have a real confirmed author, be maximum 12 words, and contain no quotation marks. Internally analyze its emotional tone, psychological energy, symbolic meaning, emotional magnitude, and intimacy scale, but do not output this analysis. Output strictly in this format: Quote — Author.",
+//     // { model: "gpt-5-nano" }
+//     //  );
+//     "Select a completely new, meaningful quote from a different author than previously used. Do not reuse any prior quote, author " + theme + " from earlier outputs. Ensure the quote is philosophically substantial, properly attributed, and not overused. The quote must have a real confirmed author, be maximum 12 words, and contain no quotation marks. Output strictly in this format: Quote — Author.",
+//     { model: "gpt-5-nano" }
+//      );
+
+//     const imageElement = await puter.ai.txt2img(
+//     // "Using this quote as the emotional and symbolic anchor: " + quote + ". Create a true 4K 3840x3840 square Instagram image that feels commissioned, professionally shot in RAW, expertly color graded, luxury editorial quality, and indistinguishable from real photography. Design a physically plausible real-world scene with narrative authenticity, natural complexity balance, and clear foreground, midground, and dimensional background depth. Avoid staged symbolism, summit silhouettes, exaggerated metaphor stacking, visual clichés, overcrowding, or oversimplification. Render as captured on a high-end full-frame DSLR or cinema camera with authentic focal length selection, gradual depth of field falloff, slight lens edge softness, smooth highlight rolloff, realistic exposure balance, subtle sensor grain, natural shadow depth variation, accurate reflections, and physically plausible scale relationships. Use dark cinematic lighting aligned emotionally with the quote, maintain directional light consistency, realistic color temperature, professional contrast curves, natural tonal transitions, and avoid hyper-saturation or artificial HDR effects. Apply asymmetrical composition with intentional eye movement, clear focal hierarchy, balanced negative space for typography, and natural perspective geometry. Overlay the quote and author in refined editorial typography that is perfectly crisp at 4K with accurate kerning, harmonious with lighting direction, respecting scene depth, maintaining print-safe margins, and placing the author subtly beneath the quote with elegant visual weight balance.",
+//     // { model: "gemini-3-pro-image-preview", size: "3840x3840" }
+//     // );
+//     "Using this quote as the emotional and symbolic anchor: " + quote + ". Produce a stunning, award-winning a 4K 3840x4800 minimalist editorial Instagram quote image. The background must be visually distinct and unpredictable. Avoid repeating previously used environmental themes or symbolic elements. Maintain minimalist composition with strong negative space for text overlay. Use only one primary focal element. Symbolism must be subtle and indirect. Lighting natural but varied. Composition must differ in perspective, spatial depth, and tonal range from prior outputs. Prioritize novelty over familiarity while preserving calm editorial refinement. Use Imagen 3 model to create this image. Overlay the quote and author in refined editorial typography that is perfectly crisp at 4K with accurate kerning, harmonious with lighting direction, respecting scene depth, maintaining print-safe margins, and placing the author subtly beneath the quote with elegant visual weight balance.",
+//     { model: "gemini-3-pro-image-preview", size: "3840x3840" }
+//     );
+
+//     const canvas=document.createElement("canvas");
+//     canvas.width=imageElement.width; canvas.height=imageElement.height;
+//     canvas.getContext("2d").drawImage(imageElement,0,0);
+//     const base64=canvas.toDataURL("image/png").replace("data:image/png;base64,","");
+//     await fetch("/receive-ai",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({quote,base64})});
+//     document.body.innerHTML="<h2>Posted Successfully ✅</h2>";
+//   // } 
+//     // catch(e){document.body.innerHTML="<h2>Error: "+e.message+"</h2>";}
+// }
+// run();
 async function run() {
-  try {
-    const theme = themes[Math.floor(Math.random()*themes.length)];
-    const quote = await puter.ai.chat(
-    "You are executing Phase 1 and Phase 2. Select one short, meaningful, properly attributed motivational quote about " + theme + " that is philosophically substantial, universally resonant, contextually accurate, and not an overused cliché. The quote must have a real confirmed author, be maximum 12 words, and contain no quotation marks. Internally analyze its emotional tone, psychological energy, symbolic meaning, emotional magnitude, and intimacy scale, but do not output this analysis. Output strictly in this format: Quote — Author.",
+
+  const theme = themes[Math.floor(Math.random() * themes.length)];
+
+  // ---- PHASE 1: QUOTE GENERATION ----
+  const quote = await puter.ai.chat(
+    "Select a completely new, meaningful quote from a different author than previously used. Do not reuse any prior quote, author, or theme from earlier outputs. Ensure the quote is philosophically substantial, properly attributed, and not overused. The quote must have a real confirmed author, be maximum 12 words, and contain no quotation marks. Output strictly in this format: Quote — Author.",
     { model: "gpt-5-nano" }
-     );
+  );
 
-    const imageElement = await puter.ai.txt2img(
-    "Using this quote as the emotional and symbolic anchor: " + quote + ". Create a true 4K 3840x3840 square Instagram image that feels commissioned, professionally shot in RAW, expertly color graded, luxury editorial quality, and indistinguishable from real photography. Design a physically plausible real-world scene with narrative authenticity, natural complexity balance, and clear foreground, midground, and dimensional background depth. Avoid staged symbolism, summit silhouettes, exaggerated metaphor stacking, visual clichés, overcrowding, or oversimplification. Render as captured on a high-end full-frame DSLR or cinema camera with authentic focal length selection, gradual depth of field falloff, slight lens edge softness, smooth highlight rolloff, realistic exposure balance, subtle sensor grain, natural shadow depth variation, accurate reflections, and physically plausible scale relationships. Use dark cinematic lighting aligned emotionally with the quote, maintain directional light consistency, realistic color temperature, professional contrast curves, natural tonal transitions, and avoid hyper-saturation or artificial HDR effects. Apply asymmetrical composition with intentional eye movement, clear focal hierarchy, balanced negative space for typography, and natural perspective geometry. Overlay the quote and author in refined editorial typography that is perfectly crisp at 4K with accurate kerning, harmonious with lighting direction, respecting scene depth, maintaining print-safe margins, and placing the author subtly beneath the quote with elegant visual weight balance.",
-    { model: "gpt-image-1.5", size: "3840x3840" }
-    );
+  // ---- PHASE 2: IMAGE GENERATION ----
+  const imageElement = await puter.ai.txt2img(
+    "Using this quote as the emotional and symbolic anchor: " + quote + 
+    ". Create a true 4K 3840x4800 minimalist editorial Instagram quote image. " +
+    "The background must be visually distinct and unpredictable. Avoid repeating previously used environmental themes or symbolic elements. " +
+    "Maintain minimalist composition with strong negative space for text overlay. Use only one primary focal element. " +
+    "Symbolism must be subtle and indirect. Lighting natural but varied. " +
+    "Composition must differ in perspective, spatial depth, and tonal range from prior outputs. " +
+    "Prioritize novelty over familiarity while preserving calm editorial refinement. " +
+    "Render as professional high-end photography with natural color science, realistic exposure, authentic lens rendering, soft highlight rolloff, and subtle depth falloff. " +
+    "Overlay the quote and author in refined editorial typography perfectly crisp at 4K resolution, with precise kerning, elegant hierarchy, balanced margins, harmonious alignment with lighting direction, and the author placed subtly beneath the quote.",
+    { model: "imagen-3", size: "3840x4800" }
+  );
 
-    const canvas=document.createElement("canvas");
-    canvas.width=imageElement.width; canvas.height=imageElement.height;
-    canvas.getContext("2d").drawImage(imageElement,0,0);
-    const base64=canvas.toDataURL("image/png").replace("data:image/png;base64,","");
-    await fetch("/receive-ai",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({quote,base64})});
-    document.body.innerHTML="<h2>Posted Successfully ✅</h2>";
-  } catch(e){document.body.innerHTML="<h2>Error: "+e.message+"</h2>";}
+  // ---- CANVAS EXPORT ----
+  const canvas = document.createElement("canvas");
+  canvas.width = imageElement.width;
+  canvas.height = imageElement.height;
+
+  const ctx = canvas.getContext("2d");
+  ctx.drawImage(imageElement, 0, 0);
+
+  const base64 = canvas
+    .toDataURL("image/png")
+    .replace("data:image/png;base64,", "");
+
+  await fetch("/receive-ai", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ quote, base64 })
+  });
+
+  document.body.innerHTML = "<h2>Posted Successfully ✅</h2>";
 }
+
 run();
 </script>
 </body>
@@ -323,4 +376,4 @@ run();
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   log(`🌐 Server running at http://localhost:${PORT}`);
-});
+}); 
