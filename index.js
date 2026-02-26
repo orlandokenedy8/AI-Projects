@@ -3,6 +3,8 @@ import "dotenv/config";
 import express from "express";
 import axios from "axios";
 import cors from "cors";
+import { init } from "@heyputer/puter.js/src/init.cjs";
+const puter = init(process.env.puterAuthToken);
 
 const {
   IG_ACCOUNT_ID,
@@ -22,6 +24,7 @@ if (
   console.error("❌ Missing environment variables!");
   process.exit(1);
 }
+
 
 const app = express();
 app.use(cors());
@@ -261,61 +264,152 @@ async function sendTelegram(text, imageUrl = null) {
 // --------------------
 // Standalone Bot Function
 // --------------------
+// async function runBot() {
+//   try {
+//     log("🚀 Running standalone bot...");
+
+//     // const themes = ["discipline and freedom", "consistency and progress", "growth mindset", "daily motivation"];
+//     const themes = [
+//       "success", "failure", "growth", "mindset",
+//       "discipline", "consistency", "self-belief", "confidence",
+//       "courage", "resilience", "perseverance", "leadership", "wisdom",
+//       "happiness", "gratitude", "purpose", "passion", "ambition", "productivity",
+//       "simplicity", "balance", "change", "transformation", "healing", "peace", "strength",
+//       "patience", "self-love", "relationships", "friendship", "love", "family", "time",
+//       "freedom", "dreams", "goals", "risk-taking", "learning", "character", "integrity"
+//     ];
+//     const theme = themes[Math.floor(Math.random() * themes.length)];
+//     log(`🎯 Selected theme: ${theme}`);
+
+//     // Generate quote
+//     const rawQuote = await puter.ai.chat(
+//       "You are executing Phase 1 and Phase 2. Select one short, meaningful, properly attributed motivational quote about " +
+//         theme +
+//         " that is philosophically substantial, universally resonant, contextually accurate, and not an overused cliché. The quote must have a real confirmed author, be maximum 12 words, and contain no quotation marks. Internally analyze its emotional tone, psychological energy, symbolic meaning, emotional magnitude, and intimacy scale, but do not output this analysis. Output strictly in this format: Quote — Author.",
+//       { model: "gpt-5-nano" }
+//     );
+
+//     const quote = sanitizeCaptionText(extractQuoteText(rawQuote));
+//     log(`💬 Generated quote: ${quote}`);
+
+//     // Generate image
+//     const imageElement = await puter.ai.txt2img(
+//       "Using this quote as the emotional and symbolic anchor: " +
+//         quote +
+//         ". Create a true 4K 3840x3840 Instagram image with cinematic lighting, natural depth, DSLR realism, narrative authenticity, and professional editorial quality.",
+//       { model: "gpt-image-1.5", size: "3840x3840" }
+//     );
+
+//     // Convert to base64 (Node compatible)
+//     const canvas = globalThis.document
+//       ? document.createElement("canvas")
+//       : { getContext: () => ({ drawImage: () => {} }), width: 3840, height: 3840 };
+//     canvas.width = imageElement.width;
+//     canvas.height = imageElement.height;
+//     canvas.getContext("2d").drawImage(imageElement, 0, 0);
+//     const base64 = canvas.toDataURL?.("image/png")?.replace("data:image/png;base64,", "") || "";
+
+//     // Upload to Cloudinary
+//     const imageUrl = await uploadToCloudinary(base64);
+//     log(`🖼️ Uploaded image URL: ${imageUrl}`);
+
+//     // Post to Instagram
+//     const caption = `${quote}\n\n${getHashtags()}`;
+//     await postToInstagram(caption, imageUrl);
+
+//     // Send Telegram notification
+//     const telegramText = `✅ <b>Instagram Post Published</b>\n\n${quote}\n\n${getHashtags()}`;
+//     await sendTelegram(telegramText, imageUrl);
+
+//     log("✅ Standalone bot run completed successfully!");
+//   } catch (err) {
+//     log(`❌ Standalone bot failed: ${err.message}`);
+//     await sendTelegram(`❌ <b>Instagram Post Failed</b>\n${err.message}`);
+//   }
+// }
 async function runBot() {
   try {
     log("🚀 Running standalone bot...");
 
-    // const themes = ["discipline and freedom", "consistency and progress", "growth mindset", "daily motivation"];
     const themes = [
-                    success, failure, growth, mindset, 
-                    discipline, consistency, self-belief, confidence, 
-                    courage, resilience, perseverance, leadership, wisdom, 
-                    happiness, gratitude, purpose, passion, ambition, productivity, 
-                    simplicity, balance, change, transformation, healing, peace, strength, 
-                    patience, self-love, relationships, friendship, love, family, time, 
-                    freedom, dreams, goals, risk-taking, learning, character, integrity
-                  ];
+      "success", "failure", "growth", "mindset",
+      "discipline", "consistency", "self-belief", "confidence",
+      "courage", "resilience", "perseverance", "leadership", "wisdom",
+      "happiness", "gratitude", "purpose", "passion", "ambition", "productivity",
+      "simplicity", "balance", "change", "transformation", "healing", "peace", "strength",
+      "patience", "self-love", "relationships", "friendship", "love", "family", "time",
+      "freedom", "dreams", "goals", "risk-taking", "learning", "character", "integrity"
+    ];
+
     const theme = themes[Math.floor(Math.random() * themes.length)];
     log(`🎯 Selected theme: ${theme}`);
 
-    // Generate quote
+    // -------------------------
+    // PHASE 1: Generate Quote
+    // -------------------------
     const rawQuote = await puter.ai.chat(
-      "You are executing Phase 1 and Phase 2. Select one short, meaningful, properly attributed motivational quote about " +
+      "Select one short, meaningful, properly attributed motivational quote about " +
         theme +
-        " that is philosophically substantial, universally resonant, contextually accurate, and not an overused cliché. The quote must have a real confirmed author, be maximum 12 words, and contain no quotation marks. Internally analyze its emotional tone, psychological energy, symbolic meaning, emotional magnitude, and intimacy scale, but do not output this analysis. Output strictly in this format: Quote — Author.",
+        ". The quote must have a real confirmed author, be maximum 12 words, contain no quotation marks, and output strictly in this format: Quote — Author.",
       { model: "gpt-5-nano" }
     );
 
     const quote = sanitizeCaptionText(extractQuoteText(rawQuote));
+
+    if (
+      !quote ||
+      quote.toLowerCase().includes("authentication") ||
+      quote.length < 10
+    ) {
+      throw new Error("AI quote generation failed.");
+    }
+
     log(`💬 Generated quote: ${quote}`);
 
-    // Generate image
-    const imageElement = await puter.ai.txt2img(
-      "Using this quote as the emotional and symbolic anchor: " +
-        quote +
-        ". Create a true 4K 3840x3840 Instagram image with cinematic lighting, natural depth, DSLR realism, narrative authenticity, and professional editorial quality.",
+    // -------------------------
+    // PHASE 2: Generate Image
+    // -------------------------
+    const imageResponse = await puter.ai.txt2img(
+      "Using this quote as the emotional anchor: " + quote +
+        ". Create a true 4K 3840x3840 minimalist editorial Instagram quote image with refined typography and professional cinematic lighting.",
       { model: "gpt-image-1.5", size: "3840x3840" }
     );
 
-    // Convert to base64 (Node compatible)
-    const canvas = globalThis.document
-      ? document.createElement("canvas")
-      : { getContext: () => ({ drawImage: () => {} }), width: 3840, height: 3840 };
-    canvas.width = imageElement.width;
-    canvas.height = imageElement.height;
-    canvas.getContext("2d").drawImage(imageElement, 0, 0);
-    const base64 = canvas.toDataURL?.("image/png")?.replace("data:image/png;base64,", "") || "";
+    // -------------------------
+    // Extract Base64 (Node Safe)
+    // -------------------------
+    let base64 = null;
 
+    if (imageResponse?.data?.[0]?.b64_json) {
+      base64 = imageResponse.data[0].b64_json;
+    } else if (imageResponse?.b64_json) {
+      base64 = imageResponse.b64_json;
+    }
+
+    if (!base64) {
+      throw new Error("Unexpected image response format.");
+    }
+
+    log("🖼️ Image generated successfully");
+
+    // -------------------------
     // Upload to Cloudinary
+    // -------------------------
     const imageUrl = await uploadToCloudinary(base64);
-    log(`🖼️ Uploaded image URL: ${imageUrl}`);
+    log(`☁️ Uploaded to Cloudinary: ${imageUrl}`);
 
+    // -------------------------
     // Post to Instagram
+    // -------------------------
     const caption = `${quote}\n\n${getHashtags()}`;
     await postToInstagram(caption, imageUrl);
 
-    // Send Telegram notification
-    const telegramText = `✅ <b>Instagram Post Published</b>\n\n${quote}\n\n${getHashtags()}`;
+    // -------------------------
+    // Telegram Notification
+    // -------------------------
+    const telegramText =
+      `✅ <b>Instagram Post Published</b>\n\n${quote}\n\n${getHashtags()}`;
+
     await sendTelegram(telegramText, imageUrl);
 
     log("✅ Standalone bot run completed successfully!");
