@@ -116,6 +116,46 @@ async function uploadToCloudinary(base64) {
   }
 }
 
+// async function postToInstagram(caption, imageUrl) {
+//   try {
+//     const mediaRes = await axios.post(
+//       `https://graph.facebook.com/v19.0/${IG_ACCOUNT_ID}/media`,
+//       new URLSearchParams({
+//         image_url: imageUrl,
+//         caption,
+//         access_token: FB_ACCESS_TOKEN,
+//       }),
+//       { headers: { "Content-Type": "application/x-www-form-urlencoded" } }
+//     );
+
+//     const mediaId = mediaRes.data.id;
+//     if (!mediaId) throw new Error("No media ID returned");
+
+//     log(`✅ Media created: ${mediaId}`);
+
+//     const publishRes = await axios.post(
+//       `https://graph.facebook.com/v19.0/${IG_ACCOUNT_ID}/media_publish`,
+//       new URLSearchParams({
+//         creation_id: mediaId,
+//         access_token: FB_ACCESS_TOKEN,
+//       }),
+//       { headers: { "Content-Type": "application/x-www-form-urlencoded" } }
+//     );
+
+//     log("✅ Media published successfully");
+//     return publishRes.data;
+//   } catch (err) {
+//     log(
+//       `❌ Instagram API error: ${JSON.stringify(
+//         err.response?.data || err.message,
+//         null,
+//         2
+//       )}`
+//     );
+//     throw err;
+//   }
+// }
+
 async function postToInstagram(caption, imageUrl) {
   try {
     const mediaRes = await axios.post(
@@ -133,6 +173,41 @@ async function postToInstagram(caption, imageUrl) {
 
     log(`✅ Media created: ${mediaId}`);
 
+    // -----------------------------
+    // ✅ WAIT UNTIL MEDIA IS READY
+    // -----------------------------
+    let status = "IN_PROGRESS";
+    const maxAttempts = 10;
+    const delay = 3000; // 3 seconds
+
+    for (let i = 0; i < maxAttempts; i++) {
+      const statusRes = await axios.get(
+        `https://graph.facebook.com/v19.0/${mediaId}`,
+        {
+          params: {
+            fields: "status_code",
+            access_token: FB_ACCESS_TOKEN,
+          },
+        }
+      );
+
+      status = statusRes.data.status_code;
+      log(`⏳ Media status: ${status}`);
+
+      if (status === "FINISHED") break;
+      if (status === "ERROR")
+        throw new Error("Instagram media processing failed");
+
+      await new Promise((r) => setTimeout(r, delay));
+    }
+
+    if (status !== "FINISHED") {
+      throw new Error("Timeout waiting for Instagram media processing");
+    }
+
+    // -----------------------------
+    // 🚀 NOW PUBLISH
+    // -----------------------------
     const publishRes = await axios.post(
       `https://graph.facebook.com/v19.0/${IG_ACCOUNT_ID}/media_publish`,
       new URLSearchParams({
@@ -190,7 +265,16 @@ async function runBot() {
   try {
     log("🚀 Running standalone bot...");
 
-    const themes = ["discipline and freedom", "consistency and progress", "growth mindset", "daily motivation"];
+    // const themes = ["discipline and freedom", "consistency and progress", "growth mindset", "daily motivation"];
+    const themes = [
+                    success, failure, growth, mindset, 
+                    discipline, consistency, self-belief, confidence, 
+                    courage, resilience, perseverance, leadership, wisdom, 
+                    happiness, gratitude, purpose, passion, ambition, productivity, 
+                    simplicity, balance, change, transformation, healing, peace, strength, 
+                    patience, self-love, relationships, friendship, love, family, time, 
+                    freedom, dreams, goals, risk-taking, learning, character, integrity
+                  ];
     const theme = themes[Math.floor(Math.random() * themes.length)];
     log(`🎯 Selected theme: ${theme}`);
 
@@ -291,7 +375,16 @@ app.get("/", (req, res) => {
 <body>
 <script src="https://js.puter.com/v2/"></script>
 <script>
-const themes=["discipline and freedom","consistency and progress","growth mindset","daily motivation"];
+// const themes=["discipline and freedom","consistency and progress","growth mindset","daily motivation"];
+const themes = [
+  "success", "failure", "growth", "mindset",
+  "discipline", "consistency", "self-belief", "confidence",
+  "courage", "resilience", "perseverance", "leadership", "wisdom",
+  "happiness", "gratitude", "purpose", "passion", "ambition", "productivity",
+  "simplicity", "balance", "change", "transformation", "healing", "peace", "strength",
+  "patience", "self-love", "relationships", "friendship", "love", "family", "time",
+  "freedom", "dreams", "goals", "risk-taking", "learning", "character", "integrity"
+];
 // async function run() {
 //   // try {
 //     const theme = themes[Math.floor(Math.random()*themes.length)];
@@ -325,15 +418,44 @@ async function run() {
 
   const theme = themes[Math.floor(Math.random() * themes.length)];
 
-  // ---- PHASE 1: QUOTE GENERATION ----
-  const quote = await puter.ai.chat(
-    "Select a completely new, meaningful quote from a different author than previously used. Do not reuse any prior quote, author, or theme from earlier outputs. Ensure the quote is philosophically substantial, properly attributed, and not overused. The quote must have a real confirmed author, be maximum 12 words, and contain no quotation marks. Output strictly in this format: Quote — Author.",
-    { model: "gpt-5-nano" }
-  );
+  // -------------------------
+  // LOAD PREVIOUSLY USED QUOTES
+  // -------------------------
+  const storedQuotes = JSON.parse(localStorage.getItem("usedQuotes") || "[]");
+  let quote = null;
+  let attempts = 0;
+  const maxAttempts = 5;
 
-  // ---- PHASE 2: IMAGE GENERATION ----
+  // -------------------------
+  // PHASE 1: UNIQUE QUOTE GENERATION
+  // -------------------------
+  while (attempts < maxAttempts) {
+
+    const generated = await puter.ai.chat(
+      "Select a completely new, meaningful quote from a different author than previously used. Do not reuse any prior quote, author, or theme from earlier outputs. Ensure the quote is philosophically substantial, properly attributed, and not overused. The quote must have a real confirmed author, be maximum 12 words, and contain no quotation marks. Output strictly in this format: Quote — Author.",
+      { model: "gpt-5-nano" }
+    );
+
+    if (!storedQuotes.includes(generated)) {
+      quote = generated;
+      storedQuotes.push(generated);
+      localStorage.setItem("usedQuotes", JSON.stringify(storedQuotes));
+      break;
+    }
+
+    attempts++;
+  }
+
+  if (!quote) {
+    document.body.innerHTML = "<h2>Error: Could not generate unique quote.</h2>";
+    return;
+  }
+
+  // -------------------------
+  // PHASE 2: IMAGE GENERATION
+  // -------------------------
   const imageElement = await puter.ai.txt2img(
-    "Using this quote as the emotional and symbolic anchor: " + quote + 
+    "Using this quote as the emotional and symbolic anchor: " + quote +
     ". Create a true 4K 3840x4800 minimalist editorial Instagram quote image. " +
     "The background must be visually distinct and unpredictable. Avoid repeating previously used environmental themes or symbolic elements. " +
     "Maintain minimalist composition with strong negative space for text overlay. Use only one primary focal element. " +
@@ -342,10 +464,12 @@ async function run() {
     "Prioritize novelty over familiarity while preserving calm editorial refinement. " +
     "Render as professional high-end photography with natural color science, realistic exposure, authentic lens rendering, soft highlight rolloff, and subtle depth falloff. " +
     "Overlay the quote and author in refined editorial typography perfectly crisp at 4K resolution, with precise kerning, elegant hierarchy, balanced margins, harmonious alignment with lighting direction, and the author placed subtly beneath the quote.",
-    { model: "imagen-3", size: "3840x4800" }
+    { model: "gemini-3-pro-image-preview", size: "3840x4800" }
   );
 
-  // ---- CANVAS EXPORT ----
+  // -------------------------
+  // CANVAS EXPORT
+  // -------------------------
   const canvas = document.createElement("canvas");
   canvas.width = imageElement.width;
   canvas.height = imageElement.height;
